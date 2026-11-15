@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bouncy game!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Redaction+35:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #stage {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(100vw, calc(100vh * 5 / 4));
+      aspect-ratio: 5 / 4;
+    }
+
+    #design {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      container-type: inline-size;
+    }
+
+    #design canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div id="design"></div>
+  </div>
+
+  <script>
+    let p1, p2, p3, p4, p5, p6;
+    let gun, bulletImg;
+    let d1, d2, d3, d4, d5, d6, d7, d8, d9;
+
+    function preload() {
+      p1 = loadImage("player1.png");
+      p2 = loadImage("player2.png");
+      p3 = loadImage("player3.png");
+      p4 = loadImage("player4.png");
+      p5 = loadImage("player5.png");
+      p6 = loadImage("player6.png");
+
+      gun = loadImage("gun.webp");
+      bulletImg = loadImage("bullet.png");
+
+      d1 = loadImage("dead1.png");
+      d2 = loadImage("dead2.png");
+      d3 = loadImage("dead3.png");
+      d4 = loadImage("dead4.png");
+      d5 = loadImage("dead5.png");
+      d6 = loadImage("dead6.png");
+      d7 = loadImage("dead7.png");
+      d8 = loadImage("dead8.png");
+      d9 = loadImage("dead9.png");
+    }
+
+    function setup() {
+      let canvas = createCanvas(1200, 960);
+      canvas.parent("design");
+    }
+
+    let vx = 0;
+    let vy = 0;
+    let x = 100;
+    let y = 100;
+    let angles = 0;
+    let canJump = false;
+    let bullets = [];
+    let canShoot = 40;
+    let walking = false;
+    let walkFrame = 1;
+    let facing = 1;
+    let dead = 0;
+
+    function draw() {
+      background(120);
+
+      let fScale = deltaTime / 16.6667;
+
+      if (!dead) {
+        if (keyIsDown(LEFT_ARROW)) {
+          if (vx > 0) vx = 0;
+          vx -= 1.5 * fScale;
+
+          if (facing === 1) {
+            angles = -angles;
+          }
+
+          facing = -1;
+        }
+
+        if (keyIsDown(RIGHT_ARROW)) {
+          if (vx < 0) vx = 0;
+          vx += 1.5 * fScale;
+
+          if (facing === -1) {
+            angles = -angles;
+          }
+
+          facing = 1;
+        }
+      }
+
+      if (keyIsDown(69)) {
+        if (facing === 1) {
+          angles -= 0.06 * fScale;
+        } else {
+          angles += 0.06 * fScale;
+        }
+      }
+
+      if (keyIsDown(68)) {
+        if (facing === 1) {
+          angles += 0.06 * fScale;
+        } else {
+          angles -= 0.06 * fScale;
+        }
+      }
+
+      if (facing === 1) {
+        angles = constrain(angles, -PI / 2, PI / 3);
+      } else {
+        angles = constrain(angles, -PI / 3, PI / 2);
+      }
+
+      vx *= 0.9;
+
+      if (dead) {
+        vy += fScale / 3;
+      } else {
+        vy += fScale;
+      }
+
+      x += vx;
+      y += vy;
+
+      if (y > 700) {
+        canJump = true;
+        y = 700;
+        vy = 0;
+      }
+
+      x = constrain(x, 0, width - 100);
+
+      let pivotX = x + 50;
+      let pivotY = y + 50;
+
+      fill(50, 0, 0);
+      rect(0, 800, 1200, 200);
+
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        let bullet = bullets[i];
+
+        bullet.x += bullet.vx * fScale;
+        bullet.y += bullet.vy * fScale;
+
+        let overlapping =
+          bullet.x < x + 100 &&
+          bullet.x + 50 > x &&
+          bullet.y < y + 100 &&
+          bullet.y + 50 > y;
+
+        if (!overlapping) {
+          bullet.hasLeftPlayer = true;
+        }
+
+        if (overlapping && bullet.hasLeftPlayer) {
+          vy = -15;
+          dead = 1;
+          break;
+        }
+
+        bullet.vy += 0.3 * fScale;
+
+        if (bullet.y + 50 >= 800 && bullet.vy > 0) {
+          bullet.y = 750;
+          bullet.vy *= -0.8;
+          bullet.bounces = (bullet.bounces || 0) + 1;
+        }
+
+        push();
+        translate(bullet.x + 25, bullet.y + 25);
+        rotate(atan2(bullet.vy, bullet.vx));
+        imageMode(CENTER);
+        image(bulletImg, 0, 0, 60, 60);
+        pop();
+
+        if (
+          bullet.x < -50 ||
+          bullet.x > width ||
+          bullet.y > height ||
+          bullet.bounces > 5
+        ) {
+          bullets.splice(i, 1);
+        }
+      }
+
+      if (abs(vx) > 0.1) {
+        walking = true;
+      } else {
+        walking = false;
+        walkFrame = 1;
+      }
+
+      if (walking && !dead) {
+        walkFrame += fScale * abs(vx) * 0.1;
+
+        if (walkFrame > 6) {
+          walkFrame = 1;
+        }
+      }
+
+      let playerImages = [p1, p2, p3, p4, p5, p6];
+      let deadImages = [d1, d2, d3, d4, d5, d6, d7, d8, d9];
+
+      let frame = constrain(floor(walkFrame) - 1, 0, 5);
+
+      push();
+      translate(facing === -1 ? x + 100 : x, y);
+      scale(facing, 1);
+
+      if (!dead) {
+        image(playerImages[frame], 0, 0, 100, 100);
+        pop();
+      } else {
+        dead += fScale / 12;
+
+        let deadFrame = constrain(floor(dead) - 1, 0, 8);
+        image(deadImages[deadFrame], 0, -45 - (2 * deadFrame), 100 * (1 + deadFrame / 13), 100 * (1 + deadFrame / 13));
+        pop();
+
+        fill(40, 0, 0, 130);
+        rect(-50, -50, width + 100, height + 100);
+        return;
+      }
+
+      push();
+      translate(pivotX, pivotY);
+      scale(facing, 1);
+      rotate(angles * facing);
+      image(gun, -30, 0, 80, 30);
+      pop();
+
+      canShoot += fScale;
+      canShoot = constrain(canShoot, 0, 40);
+    }
+
+    function keyPressed() {
+      if (keyCode === UP_ARROW && canJump && !dead) {
+        vy = -20;
+        canJump = false;
+      }
+
+      if (keyCode === DOWN_ARROW && !canJump && !dead) {
+        vy = 18;
+      }
+
+      if (keyCode === 32 && canShoot === 40 && !dead) {
+        vx = -5 * facing * cos(angles);
+        vy = -20 * sin(angles);
+        canJump = false;
+        canShoot = 0;
+
+        let pivotX = x + 50;
+        if(facing === -1) {
+          pivotY = y + 20;
+        } else {
+          pivotY = y + 50;
+        }
+
+        let bulletX = pivotX + facing * cos(angles) * 70;
+        let bulletY = pivotY + sin(angles) * 70;
+
+        bullets.push({
+          x: bulletX,
+          y: bulletY,
+          vx: facing * cos(angles) * 40,
+          vy: sin(angles) * 40,
+          bounces: 0,
+          hasLeftPlayer: false
+        });
+      }
+    }
+  </script>
+</body>
+</html>
